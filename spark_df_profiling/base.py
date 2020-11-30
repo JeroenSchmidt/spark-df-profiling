@@ -45,7 +45,7 @@ except ImportError:
     spark_version = "<1.6"
 
 
-def describe(df, bins, corr_reject, config, **kwargs):
+def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
     if not isinstance(df, SparkDataFrame):
         raise TypeError("df must be of type pyspark.sql.DataFrame")
 
@@ -89,7 +89,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
         return corr_result
 
     # Compute histogram (is not as easy as it looks):
-    def create_hist_data(df, column, minim, maxim, bins=10):
+    def create_hist_data(df:SparkDataFrame, column, minim, maxim, bins=10):
 
         def create_all_conditions(current_col, column, left_edges, count=1):
             """
@@ -171,7 +171,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
         return result_string
 
 
-    def describe_integer_1d(df, column, current_result, nrows):
+    def describe_integer_1d(df:SparkDataFrame, column, current_result, nrows):
         if spark_version == "1.6+":
             stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
                                                        df_min(col(column)).alias("min"),
@@ -181,14 +181,14 @@ def describe(df, bins, corr_reject, config, **kwargs):
                                                        stddev(col(column)).alias("std"),
                                                        skewness(col(column)).alias("skewness"),
                                                        df_sum(col(column)).alias("sum"),
-                                                       count(when(col(column) == 0.0), col(column)).alias('n_zeros')
+                                                       count(when(col(column) == 0.0, col(column))).alias('n_zeros')
                                                        ).toPandas()
         else:
             stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
                                                        df_min(col(column)).alias("min"),
                                                        df_max(col(column)).alias("max"),
                                                        df_sum(col(column)).alias("sum"),
-                                                       count(when(col(column) == 0.0), col(column)).alias('n_zeros')
+                                                       count(when(col(column) == 0.0, col(column))).alias('n_zeros')
                                                        ).toPandas()
             stats_df["variance"] = df.select(column).na.drop().agg(variance_custom(col(column),
                                                                                    stats_df["mean"].iloc[0],
@@ -240,7 +240,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
 
         return stats
 
-    def describe_float_1d(df, column, current_result, nrows):
+    def describe_float_1d(df:SparkDataFrame, column, current_result, nrows):
         if spark_version == "1.6+":
             stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
                                                        df_min(col(column)).alias("min"),
@@ -250,14 +250,14 @@ def describe(df, bins, corr_reject, config, **kwargs):
                                                        stddev(col(column)).alias("std"),
                                                        skewness(col(column)).alias("skewness"),
                                                        df_sum(col(column)).alias("sum"),
-                                                       count(when(col(column) == 0.0), col(column)).alias('n_zeros')
+                                                       count(when(col(column) == 0.0, col(column))).alias('n_zeros')
                                                        ).toPandas()
         else:
             stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
                                                        df_min(col(column)).alias("min"),
                                                        df_max(col(column)).alias("max"),
                                                        df_sum(col(column)).alias("sum"),
-                                                       count(when(col(column) == 0.0), col(column)).alias('n_zeros')
+                                                       count(when(col(column) == 0.0, col(column))).alias('n_zeros')
                                                        ).toPandas()
             stats_df["variance"] = df.select(column).na.drop().agg(variance_custom(col(column),
                                                                                    stats_df["mean"].iloc[0],
@@ -309,7 +309,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
 
         return stats
 
-    def describe_date_1d(df, column):
+    def describe_date_1d(df:SparkDataFrame, column):
         stats_df = df.select(column).na.drop().agg(df_min(col(column)).alias("min"),
                                                    df_max(col(column)).alias("max")
                                                   ).toPandas()
@@ -335,7 +335,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
 
         return type(obj)
 
-    def describe_categorical_1d(df, column):
+    def describe_categorical_1d(df:SparkDataFrame, column):
         count_column_name = "count({c})".format(c=column)
 
         value_counts = (df.select(column).na.drop()
@@ -371,21 +371,21 @@ def describe(df, bins, corr_reject, config, **kwargs):
         stats["unparsed_json_types"] = unparsed_valid_jsons
         return stats
 
-    def describe_constant_1d(df, column):
+    def describe_constant_1d(df:SparkDataFrame, column):
         stats = pd.Series(['CONST'], index=['type'], name=column)
         stats["value_counts"] = (df.select(column)
                                  .na.drop()
                                  .limit(1)).toPandas().iloc[:,0].value_counts()
         return stats
 
-    def describe_unique_1d(df, column):
+    def describe_unique_1d(df:SparkDataFrame, column):
         stats = pd.Series(['UNIQUE'], index=['type'], name=column)
         stats["value_counts"] = (df.select(column)
                                  .na.drop()
                                  .limit(50)).toPandas().iloc[:,0].value_counts()
         return stats
 
-    def describe_1d(df, column, nrows, lookup_config=None):
+    def describe_1d(df:SparkDataFrame, column, nrows, lookup_config=None):
         column_type = df.select(column).dtypes[0][1]
         # TODO: think about implementing analysis for complex
         # data types:
