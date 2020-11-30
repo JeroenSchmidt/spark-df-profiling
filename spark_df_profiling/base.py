@@ -340,7 +340,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
 
         value_counts = (df.select(column).na.drop()
                         .groupBy(column)
-                        .agg(count(when(col(column),col(column))))
+                        .agg(count(col(column)))
                         .orderBy(count_column_name, ascending=False)
                        ).cache()
 
