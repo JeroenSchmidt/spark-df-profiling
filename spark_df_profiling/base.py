@@ -188,7 +188,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
                                                        df_min(col(column)).alias("min"),
                                                        df_max(col(column)).alias("max"),
                                                        df_sum(col(column)).alias("sum"),
-                                                       count(col(column) == 0.0).alias('n_zeros')
+                                                       count(when(col(column) == 0.0), col(column)).alias('n_zeros')
                                                        ).toPandas()
             stats_df["variance"] = df.select(column).na.drop().agg(variance_custom(col(column),
                                                                                    stats_df["mean"].iloc[0],
@@ -257,7 +257,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
                                                        df_min(col(column)).alias("min"),
                                                        df_max(col(column)).alias("max"),
                                                        df_sum(col(column)).alias("sum"),
-                                                       count(col(column) == 0.0).alias('n_zeros')
+                                                       count(when(col(column) == 0.0), col(column)).alias('n_zeros')
                                                        ).toPandas()
             stats_df["variance"] = df.select(column).na.drop().agg(variance_custom(col(column),
                                                                                    stats_df["mean"].iloc[0],
@@ -340,7 +340,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
 
         value_counts = (df.select(column).na.drop()
                         .groupBy(column)
-                        .agg(count(col(column)))
+                        .agg(count(when(col(column),col(column))))
                         .orderBy(count_column_name, ascending=False)
                        ).cache()
 
@@ -393,7 +393,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
             raise NotImplementedError("Column {c} is of type {t} and cannot be analyzed".format(c=column, t=column_type))
 
         results_data = df.select(countDistinct(col(column)).alias("distinct_count"),
-                                 count(col(column).isNotNull()).alias('count')).toPandas()
+                                 count(when(col(column).isNotNull(),col(column))).alias('count')).toPandas()
         results_data["p_unique"] = results_data["distinct_count"] / float(results_data["count"])
         results_data["is_unique"] = results_data["distinct_count"] == nrows
         results_data["n_missing"] = nrows - results_data["count"]
