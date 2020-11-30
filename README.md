@@ -1,5 +1,25 @@
 # HTML profiling reports from Apache Spark DataFrames
 
+This repo is a fork from the work contained in this [project](https://github.com/julioasotodv/spark-df-profiling).
+This repo aims to only support `python +3.7` and `pyspark +2`.
+
+### Immediate TODOs:
+
+* Histogram incorrectly counts Null values as zero
+* Static Typing
+* Add Project to pip
+* Readme docs & document code
+* Testing
+
+### Change Log
+
+```
+30-11-2020:
+BUG FIX: Base profiler was not counting zeros and missing values correctly with spark 2.4 (unsure about earlier versions) because `count(col(colname)) == 0.0`) does not count the filtered values but in fact counts all values.
+```
+
+## About
+
 Generates profile reports from an [Apache Spark DataFrame](https://spark.apache.org/docs/latest/sql-programming-guide.html). It is based on [`pandas_profiling`](https://github.com/JosPolfliet/pandas-profiling), but for Spark's DataFrames instead of pandas'.
 
 For each column the following statistics - if relevant for the column type - are presented in an interactive HTML report:
@@ -82,8 +102,8 @@ profile.to_file(outputfile="/tmp/myoutputfile.html")
 
 ## Dependencies
 
-* Python (`>=2.7`)
-* Apache Spark (who would imagine!) -> requires Spark `>=1.5.0` (compatible with `2.0.0` also).
+* Python (`>=3.7`)
+* Apache Spark  -> requires Spark `>=2` 
 * **An internet connection.** spark-df-profiling requires an internet connection to download the Bootstrap and JQuery libraries. You can choose to embed them in the HTML template code, should you desire.
 * jinja2 (`>=2.8`) -> needed for template rendering. Only needed in the Spark driver.
 * matplotlib (`>=1.4`) -> needed for histogram creation. Only needed in the Spark driver.
