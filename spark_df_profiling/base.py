@@ -30,20 +30,7 @@ from pyspark.sql.functions import (abs as df_abs, col, count, countDistinct,
                                    sum as df_sum, when
                                    )
 
-# Backwards compatibility with Spark 1.5:
-try:
-    from pyspark.sql.functions import variance, stddev, kurtosis, skewness
-    spark_version = "1.6+"
-except ImportError:
-    from pyspark.sql.functions import pow as df_pow, sqrt
-    def variance_custom(column, mean, count):
-        return df_sum(df_pow(column - mean, int(2))) / float(count-1)
-    def skewness_custom(column, mean, count):
-        return ((np.sqrt(count) * df_sum(df_pow(column - mean, int(3)))) / df_pow(sqrt(df_sum(df_pow(column - mean, int(2)))),3))
-    def kurtosis_custom(column, mean, count):
-        return ((count*df_sum(df_pow(column - mean, int(4)))) / df_pow(df_sum(df_pow(column - mean, int(2))),2)) -3
-    spark_version = "<1.6"
-
+from pyspark.sql.functions import variance, stddev, kurtosis, skewness
 
 def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
     if not isinstance(df, SparkDataFrame):
@@ -72,7 +59,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
             return '%.1f%%' % x
 
     # Function to compute the correlation matrix:
-    def corr_matrix(df, columns=None):
+    def corr_matrix(df:SparkDataFrame, columns=None):
         if columns is None:
             columns = df.columns
         col_combinations = combinations(columns, 2)
@@ -89,9 +76,9 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
         return corr_result
 
     # Compute histogram (is not as easy as it looks):
-    def create_hist_data(df:SparkDataFrame, column, minim, maxim, bins=10):
+    def create_hist_data(df:SparkDataFrame, column:str, minim, maxim, bins:int=10):
 
-        def create_all_conditions(current_col, column, left_edges, count=1):
+        def create_all_conditions(current_col, column:str, left_edges, count:int=1):
             """
             Recursive function that exploits the
             ability to call the Spark SQL Column method
@@ -171,35 +158,18 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
         return result_string
 
 
-    def describe_integer_1d(df:SparkDataFrame, column, current_result, nrows):
-        if spark_version == "1.6+":
-            stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
-                                                       df_min(col(column)).alias("min"),
-                                                       df_max(col(column)).alias("max"),
-                                                       variance(col(column)).alias("variance"),
-                                                       kurtosis(col(column)).alias("kurtosis"),
-                                                       stddev(col(column)).alias("std"),
-                                                       skewness(col(column)).alias("skewness"),
-                                                       df_sum(col(column)).alias("sum"),
-                                                       count(when(col(column) == 0.0, col(column))).alias('n_zeros')
-                                                       ).toPandas()
-        else:
-            stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
-                                                       df_min(col(column)).alias("min"),
-                                                       df_max(col(column)).alias("max"),
-                                                       df_sum(col(column)).alias("sum"),
-                                                       count(when(col(column) == 0.0, col(column))).alias('n_zeros')
-                                                       ).toPandas()
-            stats_df["variance"] = df.select(column).na.drop().agg(variance_custom(col(column),
-                                                                                   stats_df["mean"].iloc[0],
-                                                                                   current_result["count"])).toPandas().iloc[0][0]
-            stats_df["std"] = np.sqrt(stats_df["variance"])
-            stats_df["skewness"] = df.select(column).na.drop().agg(skewness_custom(col(column),
-                                                                                   stats_df["mean"].iloc[0],
-                                                                                   current_result["count"])).toPandas().iloc[0][0]
-            stats_df["kurtosis"] = df.select(column).na.drop().agg(kurtosis_custom(col(column),
-                                                                                   stats_df["mean"].iloc[0],
-                                                                                   current_result["count"])).toPandas().iloc[0][0]
+    def describe_integer_1d(df:SparkDataFrame, column:str, current_result, nrows):
+        stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
+                                                    df_min(col(column)).alias("min"),
+                                                    df_max(col(column)).alias("max"),
+                                                    variance(col(column)).alias("variance"),
+                                                    kurtosis(col(column)).alias("kurtosis"),
+                                                    stddev(col(column)).alias("std"),
+                                                    skewness(col(column)).alias("skewness"),
+                                                    df_sum(col(column)).alias("sum"),
+                                                    count(when(col(column) == 0.0, col(column))).alias('n_zeros')
+                                                    ).toPandas()
+
 
         for x in [0.05, 0.25, 0.5, 0.75, 0.95]:
             stats_df[pretty_name(x)] = (df.select(column)
@@ -240,36 +210,18 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
 
         return stats
 
-    def describe_float_1d(df:SparkDataFrame, column, current_result, nrows):
-        if spark_version == "1.6+":
-            stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
-                                                       df_min(col(column)).alias("min"),
-                                                       df_max(col(column)).alias("max"),
-                                                       variance(col(column)).alias("variance"),
-                                                       kurtosis(col(column)).alias("kurtosis"),
-                                                       stddev(col(column)).alias("std"),
-                                                       skewness(col(column)).alias("skewness"),
-                                                       df_sum(col(column)).alias("sum"),
-                                                       count(when(col(column) == 0.0, col(column))).alias('n_zeros')
-                                                       ).toPandas()
-        else:
-            stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
-                                                       df_min(col(column)).alias("min"),
-                                                       df_max(col(column)).alias("max"),
-                                                       df_sum(col(column)).alias("sum"),
-                                                       count(when(col(column) == 0.0, col(column))).alias('n_zeros')
-                                                       ).toPandas()
-            stats_df["variance"] = df.select(column).na.drop().agg(variance_custom(col(column),
-                                                                                   stats_df["mean"].iloc[0],
-                                                                                   current_result["count"])).toPandas().iloc[0][0]
-            stats_df["std"] = np.sqrt(stats_df["variance"])
-            stats_df["skewness"] = df.select(column).na.drop().agg(skewness_custom(col(column),
-                                                                                   stats_df["mean"].iloc[0],
-                                                                                   current_result["count"])).toPandas().iloc[0][0]
-            stats_df["kurtosis"] = df.select(column).na.drop().agg(kurtosis_custom(col(column),
-                                                                                   stats_df["mean"].iloc[0],
-                                                                                   current_result["count"])).toPandas().iloc[0][0]
-
+    def describe_float_1d(df:SparkDataFrame, column:str, current_result, nrows):
+        stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
+                                                    df_min(col(column)).alias("min"),
+                                                    df_max(col(column)).alias("max"),
+                                                    variance(col(column)).alias("variance"),
+                                                    kurtosis(col(column)).alias("kurtosis"),
+                                                    stddev(col(column)).alias("std"),
+                                                    skewness(col(column)).alias("skewness"),
+                                                    df_sum(col(column)).alias("sum"),
+                                                    count(when(col(column) == 0.0, col(column))).alias('n_zeros')
+                                                    ).toPandas()
+        
         for x in [0.05, 0.25, 0.5, 0.75, 0.95]:
             stats_df[pretty_name(x)] = (df.select(column)
                                         .na.drop()
@@ -309,7 +261,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
 
         return stats
 
-    def describe_date_1d(df:SparkDataFrame, column):
+    def describe_date_1d(df:SparkDataFrame, column:str):
         stats_df = df.select(column).na.drop().agg(df_min(col(column)).alias("min"),
                                                    df_max(col(column)).alias("max")
                                                   ).toPandas()
@@ -335,7 +287,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
 
         return type(obj)
 
-    def describe_categorical_1d(df:SparkDataFrame, column):
+    def describe_categorical_1d(df:SparkDataFrame, column:str):
         count_column_name = "count({c})".format(c=column)
 
         value_counts = (df.select(column).na.drop()
@@ -371,7 +323,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
         stats["unparsed_json_types"] = unparsed_valid_jsons
         return stats
 
-    def describe_constant_1d(df:SparkDataFrame, column):
+    def describe_constant_1d(df:SparkDataFrame, column:str):
         stats = pd.Series(['CONST'], index=['type'], name=column)
         stats["value_counts"] = (df.select(column)
                                  .na.drop()
@@ -385,7 +337,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
                                  .limit(50)).toPandas().iloc[:,0].value_counts()
         return stats
 
-    def describe_1d(df:SparkDataFrame, column, nrows, lookup_config=None):
+    def describe_1d(df:SparkDataFrame, column:Str, nrows:int, lookup_config=None):
         column_type = df.select(column).dtypes[0][1]
         # TODO: think about implementing analysis for complex
         # data types:
