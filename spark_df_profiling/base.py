@@ -32,6 +32,8 @@ from pyspark.sql.functions import (abs as df_abs, col, count, countDistinct,
 
 from pyspark.sql.functions import variance, stddev, kurtosis, skewness
 
+# TODO: what these args do
+# TODO: allow for hisogram and/or corr to not be computed (maybe also allow for corr subset)
 def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
     if not isinstance(df, SparkDataFrame):
         raise TypeError("df must be of type pyspark.sql.DataFrame")
