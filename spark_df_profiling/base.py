@@ -79,7 +79,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
         return corr_result
 
     # Compute histogram (is not as easy as it looks):
-    def create_hist_data(df:SparkDataFrame, column:str, minim, maxim, prc_95, kurtosis:float, bins:int=10):
+    def create_hist_data(df:SparkDataFrame, column:str, minim, maxim, prc_95:float, prc_5: float, kurtosis:float, bins:int=10):
 
         def create_all_conditions(current_col, column:str, left_edges, count:int=1):
             """
@@ -99,9 +99,11 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
             left_edges.pop(0)
             return create_all_conditions(next_col, column, left_edges[:], count+1)
 
+        # if high kurtosis, take the 5th to 9th percentile range of values
         if np.abs(kurtosis) >= 100:
-            maxim = prc_95
-            df = df.filter(col(column) <= maxim)
+            maxim = prc_95 
+            minim = prc_5
+            df = df.filter(col(column) <= maxim).filter(col(column) >= minim)
 
         num_range = maxim - minim
         bin_width = num_range / float(bins)
@@ -198,7 +200,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
 
         # Large histogram
         imgdata = BytesIO()
-        hist_data = create_hist_data(df, column, stats["min"], stats["max"], stats[pretty_name(0.95)], stats["kurtosis"], bins)
+        hist_data = create_hist_data(df, column, stats["min"], stats["max"], stats[pretty_name(0.95)], stats[pretty_name(0.05)], stats["kurtosis"], bins)
         figure = plt.figure(figsize=(6, 4))
         plot = plt.subplot()
         plt.bar(hist_data["left_edge"],
@@ -250,7 +252,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
         # Large histogram
         imgdata = BytesIO()
 
-        hist_data = create_hist_data(df, column, stats["min"], stats["max"], stats[pretty_name(0.95)], stats["kurtosis"], bins)
+        hist_data = create_hist_data(df, column, stats["min"], stats["max"], stats[pretty_name(0.95)], stats[pretty_name(0.05)], stats["kurtosis"], bins)
                 
         figure = plt.figure(figsize=(6, 4))
         plot = plt.subplot()
