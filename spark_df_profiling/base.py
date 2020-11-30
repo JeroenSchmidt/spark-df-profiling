@@ -181,7 +181,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
                                                        stddev(col(column)).alias("std"),
                                                        skewness(col(column)).alias("skewness"),
                                                        df_sum(col(column)).alias("sum"),
-                                                       count(col(column) == 0.0).alias('n_zeros')
+                                                       count(when(col(column) == 0.0), col(column)).alias('n_zeros')
                                                        ).toPandas()
         else:
             stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
@@ -250,7 +250,7 @@ def describe(df, bins, corr_reject, config, **kwargs):
                                                        stddev(col(column)).alias("std"),
                                                        skewness(col(column)).alias("skewness"),
                                                        df_sum(col(column)).alias("sum"),
-                                                       count(col(column) == 0.0).alias('n_zeros')
+                                                       count(when(col(column) == 0.0), col(column)).alias('n_zeros')
                                                        ).toPandas()
         else:
             stats_df = df.select(column).na.drop().agg(mean(col(column)).alias("mean"),
