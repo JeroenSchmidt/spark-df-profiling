@@ -346,7 +346,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
                                  .limit(50)).toPandas().iloc[:,0].value_counts()
         return stats
 
-    def describe_1d(df:SparkDataFrame, column:Str, nrows:int, lookup_config=None):
+    def describe_1d(df:SparkDataFrame, column:str, nrows:int, lookup_config=None):
         column_type = df.select(column).dtypes[0][1]
         # TODO: think about implementing analysis for complex
         # data types:
