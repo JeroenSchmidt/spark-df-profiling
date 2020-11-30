@@ -34,6 +34,7 @@ from pyspark.sql.functions import variance, stddev, kurtosis, skewness
 
 # TODO: what these args do
 # TODO: allow for hisogram and/or corr to not be computed (maybe also allow for corr subset)
+# TODO: Allow for log scale? histogram without outliers (2SD)
 def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
     if not isinstance(df, SparkDataFrame):
         raise TypeError("df must be of type pyspark.sql.DataFrame")
@@ -78,7 +79,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
         return corr_result
 
     # Compute histogram (is not as easy as it looks):
-    def create_hist_data(df:SparkDataFrame, column:str, minim, maxim, bins:int=10):
+    def create_hist_data(df:SparkDataFrame, column:str, minim, maxim, prc_95, kurtosis:float, bins:int=10):
 
         def create_all_conditions(current_col, column:str, left_edges, count:int=1):
             """
@@ -97,6 +98,10 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
                                         & (col(column) < float(left_edges[1])), count)
             left_edges.pop(0)
             return create_all_conditions(next_col, column, left_edges[:], count+1)
+
+        if np.abs(kurtosis) >= 100:
+            maxim = prc_95
+            df = df.filter(col(column) <= maxim)
 
         num_range = maxim - minim
         bin_width = num_range / float(bins)
@@ -193,7 +198,7 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
 
         # Large histogram
         imgdata = BytesIO()
-        hist_data = create_hist_data(df, column, stats["min"], stats["max"], bins)
+        hist_data = create_hist_data(df, column, stats["min"], stats["max"], stats[pretty_name(0.95)], stats["kurtosis"], bins)
         figure = plt.figure(figsize=(6, 4))
         plot = plt.subplot()
         plt.bar(hist_data["left_edge"],
@@ -244,7 +249,9 @@ def describe(df:SparkDataFrame , bins, corr_reject, config, **kwargs):
 
         # Large histogram
         imgdata = BytesIO()
-        hist_data = create_hist_data(df, column, stats["min"], stats["max"], bins)
+
+        hist_data = create_hist_data(df, column, stats["min"], stats["max"], stats[pretty_name(0.95)], stats["kurtosis"], bins)
+                
         figure = plt.figure(figsize=(6, 4))
         plot = plt.subplot()
         plt.bar(hist_data["left_edge"],
